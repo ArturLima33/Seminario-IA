@@ -1,0 +1,31 @@
+{
+  "dataset": {"test_fraction": 0.2, "seed": 42, "expected_rows": 6435, "expected_features": 36, "expected_classes": 6},
+  "validation": {"type": "holdout", "fraction": 0.2, "cv_folds": 3},
+  "scaler": "standard",
+  "search_spaces": {
+    "narrow": {"C": [0.1, 10.0], "gamma": [0.01, 1.0]},
+    "wide": {"C": [0.1, 1000.0], "gamma": [0.01, 100.0]}
+  },
+  "reproduction": {
+    "methods": ["pso", "sa", "ga", "cs", "bo", "sha", "tpe", "mcmc"],
+    "spaces": ["narrow", "wide"], "scales": ["linear"],
+    "budgets": [20, 50, 100], "seeds": [0, 1, 2]
+  },
+  "extension": {
+    "methods": ["pso", "adaptive_pso", "tpe", "random_search", "grid_search"],
+    "spaces": ["wide"], "scales": ["linear", "log"],
+    "budgets": [20, 50], "seeds": [0, 1, 2, 3, 4]
+  },
+  "params": {
+    "pso": {"population": 10, "inertia": 0.7, "cognitive": 1.5, "social": 1.5, "max_velocity": 0.25},
+    "adaptive_pso": {"population": 10, "w_start": 0.9, "w_end": 0.4, "cognitive": 1.5, "social": 1.5, "max_velocity": 0.25, "stagnation_limit": 2, "restart_sigma": 0.15},
+    "ga": {"population": 10, "mutation_rate": 0.2, "elite_fraction": 0.4},
+    "cs": {"nests": 10, "abandonment": 0.25, "levy_alpha": 0.1},
+    "sa": {"initial_temp": 0.06, "final_temp": 0.001, "sigma": 0.12},
+    "bo": {"startup": 5, "candidates": 500, "xi": 0.01},
+    "sha": {},
+    "tpe": {"startup": 8, "good_fraction": 0.25, "candidates": 32},
+    "mcmc": {"sigma": 0.12, "temperature": 0.05},
+    "random_search": {}, "grid_search": {}
+  }
+}
