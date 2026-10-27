@@ -22,8 +22,13 @@ def main(argv=None):
     parser.add_argument('--scales', nargs='+', choices=['linear', 'log'])
     parser.add_argument('--budgets', nargs='+', type=int)
     parser.add_argument('--seeds', nargs='+', type=int)
+    parser.add_argument('--max-tasks', type=int, default=None,
+                        help='Limita o número de combinações de execução para acelerar testes rápidos')
 
     args = parser.parse_args(argv)
+
+    if args.smoke and args.max_tasks is None:
+        args.max_tasks = 20
 
     if args.budgets and any(n < 2 for n in args.budgets):
         parser.error('--budgets exige valores >= 2')
@@ -70,7 +75,8 @@ def main(argv=None):
         scale_override=args.scales,
         budget_override=args.budgets,
         seeds_override=args.seeds,
-        dry_run=args.dry_run
+        dry_run=args.dry_run,
+        max_tasks=args.max_tasks
     )
 
     if not args.dry_run:

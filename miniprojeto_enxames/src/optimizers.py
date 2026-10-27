@@ -3,12 +3,19 @@ Todos usam a MESMA Objective e contam cada chamada como uma avaliação.
 """
 from __future__ import annotations
 import math
+import os
+import sys
 import numpy as np
 from scipy.special import logsumexp
 from scipy.stats import norm
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import Matern, WhiteKernel, ConstantKernel
-from .objective import BudgetExhausted
+
+try:
+    from .objective import BudgetExhausted
+except ImportError:  # execução direta do arquivo
+    sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
+    from src.objective import BudgetExhausted
 
 PAPER = ['pso', 'sa', 'ga', 'cs', 'bo', 'sha', 'tpe', 'mcmc']
 METHODS = PAPER + ['adaptive_pso', 'random_search', 'grid_search']

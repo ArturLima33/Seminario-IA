@@ -16,7 +16,7 @@ from .optimizers import run_optimizer
 
 
 def specs(cfg, mode, method_override=None, space_override=None, scale_override=None,
-          budget_override=None, seeds_override=None):
+          budget_override=None, seeds_override=None, max_tasks=None):
     plan = cfg[mode]
     methods = method_override or plan['methods']
     spaces = space_override or plan['spaces']
@@ -24,11 +24,15 @@ def specs(cfg, mode, method_override=None, space_override=None, scale_override=N
     budgets = budget_override or plan['budgets']
     seeds = seeds_override or plan['seeds']
 
+    count = 0
     for sp in spaces:
         for sc in scales:
             for budget in budgets:
                 for method in methods:
                     for seed in seeds:
+                        if max_tasks is not None and count >= max_tasks:
+                            return
+                        count += 1
                         yield {
                             'mode': mode,
                             'space': sp,
@@ -62,7 +66,7 @@ def _save_json(path, obj):
 def run_experiment(cfg, mode, *, output, data_path=None, smoke=False, quick=False,
                    validation_override=None, method_override=None, space_override=None,
                    scale_override=None, budget_override=None, seeds_override=None,
-                   dry_run=False):
+                   dry_run=False, max_tasks=None):
     tasks = list(specs(
         cfg,
         mode,
@@ -70,7 +74,8 @@ def run_experiment(cfg, mode, *, output, data_path=None, smoke=False, quick=Fals
         space_override,
         scale_override,
         budget_override,
-        seeds_override
+        seeds_override,
+        max_tasks=max_tasks
     ))
 
     for task in tasks:

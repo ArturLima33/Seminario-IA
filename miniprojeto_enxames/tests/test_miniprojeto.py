@@ -7,7 +7,7 @@ from sklearn.datasets import make_classification
 from src.data import load_data, split_data
 from src.objective import SearchSpace, Objective, final_test, BudgetExhausted
 from src.optimizers import METHODS, run_optimizer
-from src.runner import effective_budget
+from src.runner import effective_budget, specs
 
 
 @pytest.fixture
@@ -23,6 +23,12 @@ def test_data_smoke_and_real_guard():
     assert meta['source'].startswith('SYNTHETIC')
     with pytest.raises(FileNotFoundError):
         load_data('/path/notfound.tsv.gz')
+
+
+def test_specs_limit_tasks():
+    cfg = {'extension': {'methods':['pso','tpe'],'spaces':['wide'],'scales':['linear','log'],'budgets':[20,50],'seeds':[0,1]}}
+    tasks = list(specs(cfg, 'extension', max_tasks=3))
+    assert len(tasks) == 3
 
 
 def test_space():
