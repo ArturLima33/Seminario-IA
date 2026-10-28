@@ -17,10 +17,10 @@ def load_data(path: str | None = None, *, smoke: bool = False):
     """Devolve (X,y,metadados); --smoke nunca se passa por Satimage."""
     if smoke:
         X, y = make_classification(n_samples=240, n_features=12, n_informative=9,
-                                   n_redundant=1, n_classes=3, n_clusters_per_class=1,
+                                   n_redundant=1, n_classes=3, n_clusters_per_class=1, weights=[0.65,0.25,0.10],
                                    random_state=123)
         return X, y, {"source": "SYNTHETIC_SMOKE_NOT_FOR_REPORT", "sha256": None}
-    file = Path(path) if path else Path('data/294_satellite_image.tsv.gz')
+    file = Path(path) if path else Path(__file__).resolve().parents[1] / 'data' / '294_satellite_image.tsv.gz'
     if not file.exists():
         if path:
             raise FileNotFoundError(f'Base não encontrada em: {file}')
@@ -56,5 +56,6 @@ def split_data(X, y, test_fraction=0.2, seed=42):
 
 def describe(X, y, meta):
     classes, counts = np.unique(y, return_counts=True)
-    return {**meta, "samples": int(len(y)), "attributes": int(X.shape[1]),
+    return {**meta, "imbalance_ratio": float(max(counts)/min(counts)),
+            "samples": int(len(y)), "attributes": int(X.shape[1]),
             "n_classes": len(classes), "class_counts": {str(k): int(v) for k, v in zip(classes, counts)}}

@@ -1,5 +1,6 @@
 """Testes integrados sem depender de rede; a base sintética NUNCA vira resultado científico."""
 import json
+from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
@@ -59,7 +60,7 @@ def test_cv(sample):
 @pytest.mark.parametrize('method', METHODS)
 def test_every_optimizer(method, sample):
     Xtr,_,ytr,_ = sample
-    with open('config/experiments.json') as f: cfg=json.load(f)
+    with open(Path(__file__).resolve().parents[1] / 'config/experiments.json') as f: cfg=json.load(f)
     task = {'method':method,'budget':10}
     budget, params_sha = effective_budget(task)
     obj = Objective(Xtr,ytr,SearchSpace((0.1,10),(0.01,1)), budget)

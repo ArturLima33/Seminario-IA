@@ -30,46 +30,79 @@ def _levy(rng, dim, beta=1.5):
 
 
 def _pso(obj, rng, p, *, adaptive=False):
+    """PSO no cubo [0,1]^2, com orçamento contado por avaliação SVM.
+
+    A inércia adaptativa depende da GERAÇÃO de movimento, não das avaliações
+    já gastas na inicialização. Reinicia a pior partícula (posição, velocidade e
+    pBest) após ``stagnation_limit`` gerações completas sem novo gBest.
+    Reinícios são registrados no histórico; não criam avaliações gratuitas.
+    """
     n = min(obj.budget, int(p['population']))
+    if n < 1:
+        raise ValueError('PSO requer população positiva e orçamento >= 1')
+    if adaptive:
+        if not (0 <= p['w_end'] <= p['w_start']):
+            raise ValueError('Requer 0 <= w_end <= w_start')
+        if int(p['stagnation_limit']) < 1:
+            raise ValueError('stagnation_limit deve ser >= 1')
     x = rng.random((n, 2))
     velocity = rng.uniform(-0.1, 0.1, (n, 2))
     individual_best = x.copy()
-    individual_fitness = np.array([obj(z) for z in x])
+    individual_fitness = []
+    obj.iteration = 0
+    for z in x:
+        individual_fitness.append(obj(z))
+        obj.evaluations[-1].update(pso_phase='initialization', pso_inertia=None,
+                                   pso_restart=False, pso_stalled_generations=0)
+    individual_fitness = np.asarray(individual_fitness)
     global_idx = int(np.argmin(individual_fitness))
     global_best = x[global_idx].copy()
     global_fitness = float(individual_fitness[global_idx])
-    previous_best, stalled = global_fitness, 0
-    iteration = 0
-    while obj.n_evals < obj.budget:
-        iteration += 1
-        obj.iteration = iteration
-        if adaptive:
-            # MODIFICAÇÃO ORIGINAL: inércia linearmente decrescente em função do orçamento gasto.
-            progress = obj.n_evals / obj.budget
-            inertia = float(p['w_start'] * (1 - progress) + p['w_end'] * progress)
-        else:
-            inertia = float(p['inertia'])
+
+    stalled = 0
+    moves = obj.budget - n
+    total_generations = math.ceil(moves / n) if moves else 0
+    for generation in range(total_generations):
+        obj.iteration = generation + 1
+        # Primeira geração usa w_start; a última usa w_end quando existem >=2.
+        progress = generation / max(1, total_generations - 1)
+        inertia = (float(p['w_start'] * (1 - progress) + p['w_end'] * progress)
+                   if adaptive else float(p['inertia']))
+        restarted_idx = None
+        if adaptive and stalled >= int(p['stagnation_limit']):
+            # Reiniciar a pior partícula permite explorar região não visitada.
+            restarted_idx = int(np.argmax(individual_fitness))
+            x[restarted_idx] = rng.random(2)
+            velocity[restarted_idx] = rng.uniform(-0.1, 0.1, 2)
+            # Descartar seu pBest antigo; gBest é preservado.
+            individual_best[restarted_idx] = x[restarted_idx].copy()
+            individual_fitness[restarted_idx] = np.inf
+            stalled = 0
+
+        previous_global = global_fitness
         for i in range(n):
-            if obj.n_evals >= obj.budget: break
-            r1, r2 = rng.random(2), rng.random(2)
-            velocity[i] = (inertia * velocity[i] +
-                           p['cognitive'] * r1 * (individual_best[i] - x[i]) +
-                           p['social'] * r2 * (global_best - x[i]))
-            velocity[i] = np.clip(velocity[i], -p['max_velocity'], p['max_velocity'])
-            x[i] = np.clip(x[i] + velocity[i], 0, 1)
-            # MODIFICAÇÃO ORIGINAL: reinício parcial após duas gerações estagnadas.
-            if adaptive and stalled >= p['stagnation_limit'] and i == n - 1:
-                x[i] = np.clip(global_best + rng.normal(0, p['restart_sigma'], 2), 0, 1)
+            if obj.n_evals >= obj.budget:
+                break
+            restarted = i == restarted_idx
+            if not restarted:
+                r1, r2 = rng.random(2), rng.random(2)
+                velocity[i] = (inertia * velocity[i] +
+                               p['cognitive'] * r1 * (individual_best[i] - x[i]) +
+                               p['social'] * r2 * (global_best - x[i]))
+                velocity[i] = np.clip(velocity[i], -p['max_velocity'], p['max_velocity'])
+                x[i] = np.clip(x[i] + velocity[i], 0, 1)
             score = obj(x[i])
+            obj.evaluations[-1].update(pso_phase='update', pso_inertia=inertia,
+                                       pso_restart=bool(restarted),
+                                       pso_stalled_generations=stalled)
             if score < individual_fitness[i]:
                 individual_best[i], individual_fitness[i] = x[i].copy(), score
             if score < global_fitness:
                 global_best, global_fitness = x[i].copy(), score
-        if global_fitness < previous_best - 1e-12:
+        if global_fitness < previous_global - 1e-12:
             stalled = 0
         else:
             stalled += 1
-        previous_best = global_fitness
 
 
 def _sa(obj, rng, p):
@@ -259,7 +292,10 @@ def run_optimizer(method, objective, seed, params):
         raise RuntimeError('Nenhuma avaliação de fidelidade completa válida')
     return {'best_C': objective.space.decode(objective.best_position)[0],
             'best_gamma': objective.space.decode(objective.best_position)[1],
-            'best_val_accuracy': objective.best_score, 'optimization_s': elapsed,
+            'best_val_accuracy': objective.best_val_accuracy,
+            'best_val_f1_macro': objective.best_val_f1_macro,
+            'best_val_score': objective.best_score,
+            'optimization_s': elapsed,
             'n_evals': objective.n_evals,
             'equivalent_full_evals': sum(e['resource_fraction'] for e in objective.evaluations),
             'failed_evals': sum(not e['valid'] for e in objective.evaluations)}
